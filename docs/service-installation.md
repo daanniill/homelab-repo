@@ -1,225 +1,110 @@
-## Service Installation Commands
+# Service Installation Commands
 
-> These commands are intended for Debian or Ubuntu VMs/LXC containers. Do not run them directly on the Proxmox host unless the service is specifically meant to run there.
+Quick-reference commands for the services used in this homelab.
 
-### AdGuard Home
+> Run these only inside the intended Debian or Ubuntu VM/LXC container. Do not run application installers directly on a Proxmox host. Review remote scripts before running them, and never place real credentials or setup keys in this file.
 
-Provides network-wide DNS filtering and domain blocking.
-
-```bash
-sudo apt update && sudo apt install -y curl && curl -sSL https://raw.githubusercontent.com/AdguardTeam/AdGuardHome/master/scripts/install.sh | sh -s -- -v
-```
-
-Default setup interface:
-
-```text
-http://<SERVER-IP>:3000
-```
-
----
+## Base Services
 
 ### Samba
 
-Provides SMB file sharing for Windows, macOS, and Linux clients.
+```bash
+sudo apt update && sudo apt install -y samba smbclient && sudo systemctl enable --now smbd
+```
+
+### Docker Engine and Docker Compose
+
+Docker's convenience installer is intended for development and homelab use. Review the script before running it.
 
 ```bash
-sudo apt update && sudo apt install -y samba smbclient
+curl -fsSL https://get.docker.com | sudo sh && sudo systemctl enable --now docker && docker compose version
 ```
 
-The main configuration file is:
-
-```text
-/etc/samba/smb.conf
-```
-
-After editing the configuration:
-
-```bash
-sudo testparm && sudo systemctl restart smbd
-```
-
----
+## Remote Access
 
 ### NetBird
-
-Provides secure remote access to the homelab through a WireGuard-based private network.
 
 ```bash
 curl -fsSL https://pkgs.netbird.io/install.sh | sh && sudo netbird up
 ```
 
-Check the connection:
-
-```bash
-netbird status
-```
-
-For unattended server setup, use a setup key without committing the real key to GitHub:
-
-```bash
-sudo netbird up --setup-key <NETBIRD_SETUP_KEY>
-```
-
----
+For unattended enrollment, provide the setup key through a protected secret-management process rather than committing it here.
 
 ### Tailscale
 
-Previously used for secure remote access and VPN experimentation.
+Tailscale remains experimental in this homelab.
 
 ```bash
 curl -fsSL https://tailscale.com/install.sh | sh && sudo tailscale up
 ```
 
-Check the connection:
+## DNS
+
+### AdGuard Home
+
+AdGuard Home remains experimental in this homelab.
 
 ```bash
-tailscale status
+curl -sSL https://raw.githubusercontent.com/AdguardTeam/AdGuardHome/master/scripts/install.sh | sudo sh -s -- -v
 ```
 
----
+After installation, complete the initial configuration at `http://<SERVER-IP>:3000`.
 
-### Jellyfin
+## Media Stack
 
-Provides media library management and streaming.
+These commands assume the current directory contains a `compose.yaml` file with services named `jellyfin`, `qbittorrent`, `prowlarr`, and `seerr`.
 
-```bash
-curl -sSLO https://repo.jellyfin.org/install-debuntu.sh && curl -sSLO https://repo.jellyfin.org/install-debuntu.sh.sha256sum && sha256sum -c install-debuntu.sh.sha256sum && sudo bash install-debuntu.sh
-```
-
-Default web interface:
-
-```text
-http://<SERVER-IP>:8096
-```
-
----
-
-### qBittorrent
-
-Provides a headless BitTorrent client with a web interface.
-
-```bash
-sudo apt update && sudo apt install -y qbittorrent-nox
-```
-
-Run it for the first time:
-
-```bash
-qbittorrent-nox
-```
-
-Default web interface:
-
-```text
-http://<SERVER-IP>:8080
-```
-
-For a permanent installation, run qBittorrent through a dedicated systemd service account rather than leaving it attached to a terminal.
-
----
-
-### Docker
-
-Provides the container runtime for the media stack.
-
-```bash
-curl -fsSL https://get.docker.com | sudo sh
-```
-
-Enable Docker at startup:
-
-```bash
-sudo systemctl enable --now docker
-```
-
-Verify the installation:
-
-```bash
-sudo docker run --rm hello-world
-```
-
-> Docker describes `get.docker.com` as a convenience installer. For a production-oriented rebuild, use Docker's official Debian repository installation procedure.
-
----
-
-### Media Stack
-
-When the repository contains a completed `compose.yml` file for Jellyfin, qBittorrent, Prowlarr, and Seerr:
+### Deploy the Entire Stack
 
 ```bash
 docker compose pull && docker compose up -d
 ```
 
-Start only the listed media services:
+### Jellyfin
 
 ```bash
-docker compose up -d jellyfin qbittorrent prowlarr seerr
+docker compose pull jellyfin && docker compose up -d jellyfin
 ```
 
-Stop the stack:
+### qBittorrent
 
 ```bash
-docker compose down
+docker compose pull qbittorrent && docker compose up -d qbittorrent
 ```
 
-View its status:
+### Prowlarr
+
+```bash
+docker compose pull prowlarr && docker compose up -d prowlarr
+```
+
+### Seerr
+
+```bash
+docker compose pull seerr && docker compose up -d seerr
+```
+
+## Common Operations
 
 ```bash
 docker compose ps
 ```
 
-Follow service logs:
-
 ```bash
 docker compose logs -f
 ```
 
----
-
-### Prowlarr
-
-Prowlarr manages indexers used by the media automation services.
-
-When Prowlarr is defined in the media stack's `compose.yml`:
-
 ```bash
-docker compose up -d prowlarr
+docker compose down
 ```
 
-Default web interface:
+## Proxmox VE
 
-```text
-http://<SERVER-IP>:9696
-```
+Proxmox VE is installed from its installer ISO and is not represented by a one-line application install command. General services should run in VMs or LXC containers rather than directly on the Proxmox hosts.
 
----
+## Official References
 
-### Seerr
-
-Seerr provides a request-management interface connected to Jellyfin.
-
-When Seerr is defined in the media stack's `compose.yml`:
-
-```bash
-docker compose up -d seerr
-```
-
-Default web interface:
-
-```text
-http://<SERVER-IP>:5055
-```
-
----
-
-## Rebuild the Entire Docker Stack
-
-From the directory containing `compose.yml`:
-
-```bash
-docker compose pull && docker compose up -d
-```
-
-This downloads newer container images if available and recreates the services while preserving data stored in properly configured bind mounts or named volumes.
-
-
+- [Docker Engine installation](https://docs.docker.com/engine/install/)
+- [NetBird Linux installation](https://docs.netbird.io/get-started/install/linux)
+- [Tailscale Linux installation](https://tailscale.com/docs/install/linux)
+- [AdGuard Home installation](https://github.com/AdguardTeam/AdGuardHome#getting-started)
