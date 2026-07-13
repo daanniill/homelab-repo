@@ -11,3 +11,7 @@ projects/
 ```
 
 A project README can start with its purpose, current status, basic setup, and next steps.
+
+## Current Projects
+
+- [Media stack](media-stack/README.md)

@@ -1,0 +1,76 @@
+name: media-stack
+
+# Safe defaults:
+# - Application data is stored beneath this directory.
+# - Web interfaces bind to localhost unless BIND_ADDRESS is overridden.
+# - Replace the default paths and pin image tags before long-term use.
+
+services:
+  jellyfin:
+    image: jellyfin/jellyfin:${JELLYFIN_TAG:-latest}
+    user: "${PUID:-1000}:${PGID:-1000}"
+    environment:
+      TZ: ${TZ:-America/Los_Angeles}
+    volumes:
+      - ${CONFIG_ROOT:-./config}/jellyfin:/config
+      - ${CACHE_ROOT:-./cache}/jellyfin:/cache
+      - ${MEDIA_ROOT:-./media}:/media:ro
+    ports:
+      - ${BIND_ADDRESS:-127.0.0.1}:${JELLYFIN_PORT:-8096}:8096
+    restart: unless-stopped
+    networks:
+      - media
+
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:${QBITTORRENT_TAG:-latest}
+    environment:
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      TZ: ${TZ:-America/Los_Angeles}
+      WEBUI_PORT: 8080
+      TORRENTING_PORT: ${QBITTORRENT_TORRENT_PORT:-6881}
+    volumes:
+      - ${CONFIG_ROOT:-./config}/qbittorrent:/config
+      - ${DOWNLOAD_ROOT:-./downloads}:/downloads
+    ports:
+      - ${BIND_ADDRESS:-127.0.0.1}:${QBITTORRENT_WEB_PORT:-8080}:8080
+      - ${QBITTORRENT_TORRENT_PORT:-6881}:${QBITTORRENT_TORRENT_PORT:-6881}/tcp
+      - ${QBITTORRENT_TORRENT_PORT:-6881}:${QBITTORRENT_TORRENT_PORT:-6881}/udp
+    restart: unless-stopped
+    networks:
+      - media
+
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:${PROWLARR_TAG:-latest}
+    environment:
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      TZ: ${TZ:-America/Los_Angeles}
+    volumes:
+      - ${CONFIG_ROOT:-./config}/prowlarr:/config
+    ports:
+      - ${BIND_ADDRESS:-127.0.0.1}:${PROWLARR_PORT:-9696}:9696
+    restart: unless-stopped
+    networks:
+      - media
+
+  seerr:
+    image: ghcr.io/seerr-team/seerr:${SEERR_TAG:-latest}
+    init: true
+    environment:
+      TZ: ${TZ:-America/Los_Angeles}
+      PORT: 5055
+      LOG_LEVEL: info
+    volumes:
+      # The official image runs as UID/GID 1000; this directory must be writable by it.
+      - ${CONFIG_ROOT:-./config}/seerr:/app/config
+    ports:
+      - ${BIND_ADDRESS:-127.0.0.1}:${SEERR_PORT:-5055}:5055
+    restart: unless-stopped
+    networks:
+      - media
+
+networks:
+  media:
+    name: media-stack
+    driver: bridge
